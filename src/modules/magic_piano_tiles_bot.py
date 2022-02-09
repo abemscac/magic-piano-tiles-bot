@@ -1,7 +1,7 @@
 from math import floor
-from typing import Any
+import time
 
-from config import GameRect, TileSize, TileCount
+from config import GameRect, TileSize, TileCount, CheckInterval
 from mss import mss
 from mss.base import MSSBase
 from pynput.keyboard import Listener
@@ -9,20 +9,31 @@ from pynput.mouse import Controller
 
 
 class MagicPianoTilesBot:
-  __mss: MSSBase
-  __mouse: Any
-  __detecting: bool
   __tile_positions_in_screen: list
   __tile_positions_in_img: list
+  __detecting: bool
+  __mss: MSSBase
+  __mouse: Controller
+  __keyboard_listener: Listener
 
   def __init__(self):
-    self.__mss = mss()
-    self.__mouse = Controller()
-    self.__detecting = False
     self.__tile_positions_in_screen = list(
         map(self.__get_tile_position_in_screen_by_index, range(TileCount)))
     self.__tile_positions_in_img = list(
         map(self.__get_tile_position_in_img_by_index, range(TileCount)))
+    self.__detecting = False
+    self.__mss = mss()
+    self.__mouse = Controller()
+    self.__keyboard_listener = Listener(on_press=self.__handle_key_press)
+
+  def start(self):
+    self.__keyboard_listener.start()
+    print('MagicPianoTiles bot is running.')
+    print("Press 'Q' to eanble/disable bot.")
+    while 1:
+      if self.__detecting:
+        self.__check_tiles()
+      time.sleep(CheckInterval)
 
   def __get_tile_position_in_screen_by_index(self, index: int):
     x = GameRect.get('left') + TileSize.half_width + (TileSize.width * index)
@@ -35,26 +46,6 @@ class MagicPianoTilesBot:
     y = floor((GameRect.get('height') -
               TileSize.height - TileSize.half_height) * 2)
     return (x, y)
-
-  def start(self):
-    print('MagicPianoTiles bot is running.')
-    print("Press 'Q' to eanble/disable bot.")
-    print('Detection start.')
-    with Listener(
-        on_press=self.__handle_key_press,
-        on_release=self.__handle_key_release
-    ) as listener:
-      listener.join()
-
-  def __handle_key_press(self, key):
-    if self.__key_is_q(key):
-      if not self.__detecting:
-        self.__detecting = True
-        print('Detection start.')
-      self.__check_tiles()
-
-  def __key_is_q(self, key):
-    return hasattr(key, 'char') and key.char == 'q'
 
   def __check_tiles(self):
     img = self.__mss.grab(GameRect)
@@ -70,7 +61,14 @@ class MagicPianoTilesBot:
     self.__mouse.position = (x, y)
     # self.__mouse.click(Button.left, 1)
 
-  def __handle_key_release(self, key):
+  def __handle_key_press(self, key):
     if self.__key_is_q(key):
-      self.__detecting = False
-      print('Detection end.')
+      if not self.__detecting:
+        self.__detecting = True
+        print('Detection start.')
+      else:
+        self.__detecting = False
+        print('Detection end.')
+
+  def __key_is_q(self, key):
+    return hasattr(key, 'char') and key.char == 'q'

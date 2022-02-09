@@ -39,3 +39,5 @@ class Size:
 
 TileSize = Size(70, 120)
 TileCount = 4
+
+CheckInterval = 0.1
